@@ -11,6 +11,7 @@ from .db_monitor import SQLiteSwapMonitor
 from .models import Swap, TotalCount
 from .store import SwapStore
 
+BACKFILL_SINCE = os.environ.get("BACKFILL_SINCE", None)
 
 @dataclass
 class AppState:
@@ -28,6 +29,15 @@ def create_app() -> FastAPI:
 	store = SwapStore()
 	load_history = (os.environ.get("KDF_LOAD_HISTORY", "true").lower() in ("1", "true", "yes"))
 	monitor = SQLiteSwapMonitor(db_path=db_path, callback=lambda s: store.upsert_swap(s), load_history=load_history)
+    
+	# Backfill since given timestamp or last 24 hours to make stats available on launch
+	try:
+        if BACKFILL_SINCE is not None:
+            monitor.backfill_range(int(BACKFILL_SINCE), int(time.time()))
+        else:
+		    monitor.backfill_last_hours(24)
+	except Exception:
+		pass
 	monitor.start()
 
 	state = AppState(store=store, monitor=monitor)
