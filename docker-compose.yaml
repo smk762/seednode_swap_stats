@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   kdf:
     build:
@@ -17,3 +15,16 @@ services:
       - "8870:8870"
       - "42845:42845"
       - "42855:42855"
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      - KDF_DB_PATH=/home/komodian/.kdf/DB/a8768e7ff55c6c5041bf79d06b74aeed1bb7aa91/MM2.db
+    volumes:
+      - ./.kdf:/home/komodian/.kdf:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      - kdf
