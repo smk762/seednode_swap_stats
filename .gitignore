@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Docker artifacts
+.docker/
+
+# Logs
+*.log
+logs/
+kdf.log
+
+# KDF local data
+.kdf/
+userpass
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Project-specific
+MM2.json
+coins

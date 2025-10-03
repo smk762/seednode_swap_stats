@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  kdf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+    command: >-
+      sh -c "./run_kdf.sh"
+    volumes:
+      - ./:/home/komodian/kdf
+      - ./.kdf:/home/komodian/.kdf
+    ports:
+      - "8870:8870"
+      - "42845:42845"
+      - "42855:42855"

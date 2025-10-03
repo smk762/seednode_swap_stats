@@ -1,0 +1,30 @@
+{
+    "gui": "swap_tracker",
+    "netid": 8762,
+    "wallet_name": "swap_tracker",
+    "wallet_password": "",
+    "rpc_password": "",
+    "rpc_local_only": false,
+    "dbdir": "/home/komodian/.kdf/DB",
+    "rpcip": "0.0.0.0",
+    "rpcport": 8870,
+    "metrics": 120,
+    "i_am_seed": true,
+    "is_bootstrap_node": false,
+    "disable_p2p": false,
+    "is_watcher": true,
+    "seednodes": [
+        "seed01.kmdefi.net",
+        "seed02.kmdefi.net",
+        "balerion.dragon-seed.com",
+        "drogon.dragon-seed.com",
+        "falkor.dragon-seed.com",
+        "icefyre.dragon-seed.com",
+        "kalessin.dragon-seed.com",
+        "karrigvestrit.dragon-seed.com",
+        "relpda.dragon-seed.com",
+        "sintara.dragon-seed.com",
+        "tintaglia.dragon-seed.com",
+        "viserion.dragon-seed.com"
+    ]
+}
