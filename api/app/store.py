@@ -43,6 +43,10 @@ class SwapStore:
 		with self._lock:
 			self._events = events
 
+	def get_events(self) -> List[Event]:
+		with self._lock:
+			return list(self._events)
+
 	def set_price_cache(self, cache: PriceCache) -> None:
 		with self._lock:
 			self._price_cache = cache

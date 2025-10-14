@@ -50,9 +50,9 @@ def create_app() -> FastAPI:
 		pass
 
 	# Load events from JSON path and backfill their windows
-	events = load_events(config.events_json_path)
-	store.set_events(events)
-	for ev in events:
+	loaded_events = load_events(config.events_json_path)
+	store.set_events(loaded_events)
+	for ev in loaded_events:
 		try:
 			monitor.backfill_range(ev.start, ev.stop)
 		except Exception:
@@ -93,11 +93,11 @@ def create_app() -> FastAPI:
 		return s
 
 	# Proposed endpoints per issue
-	# /events?event_name=...
-	@app.get("/events")
-	def events(event_name: Optional[str] = Query(None)):
-		# Return details for requested event or overview list
-		all_events = events
+	# /event_details?event_name=...
+	@app.get("/event_details")
+	def event_details(event_name) -> dict:
+		# Return details for requested event
+		all_events = app.state.swap_state.store.get_events()  # type: ignore[attr-defined]
 		if event_name:
 			for ev in all_events:
 				if ev.name == event_name:
@@ -110,14 +110,17 @@ def create_app() -> FastAPI:
 							**ev.extra,
 						}
 					}
-			return {}
-		# Overview list
-		return [app.state.swap_state.store.event_overview(ev) for ev in all_events]  # type: ignore[attr-defined]
+		return {"error": f"event `{event_name}` not found"}
+
+	@app.get("/events")
+	def events() -> dict:
+		# Return all event names
+		return JSONResponse([ev.name for ev in app.state.swap_state.store.get_events()])  # type: ignore[attr-defineded]
 
 	# /traders?event_name=...&limit=50&offset=0&search=
 	@app.get("/traders")
 	def traders(event_name: str = Query(...), limit: int = Query(50, ge=1, le=500), offset: int = Query(0, ge=0), search: Optional[str] = Query(None)):
-		all_events = events
+		all_events = app.state.swap_state.store.get_events()  # type: ignore[attr-defined]
 		ev = next((e for e in all_events if e.name == event_name), None)
 		if not ev:
 			raise HTTPException(status_code=404, detail="event not found")
@@ -127,7 +130,7 @@ def create_app() -> FastAPI:
 	# /trader_swaps?event_name=...&pubkey=...&limit=50&offset=0&search=
 	@app.get("/trader_swaps")
 	def trader_swaps(event_name: str = Query(...), pubkey: Optional[str] = Query(None), limit: int = Query(50, ge=1, le=500), offset: int = Query(0, ge=0), search: Optional[str] = Query(None)):
-		all_events = events
+		all_events = app.state.swap_state.store.get_events()  # type: ignore[attr-defined]
 		ev = next((e for e in all_events if e.name == event_name), None)
 		if not ev:
 			raise HTTPException(status_code=404, detail="event not found")
@@ -170,7 +173,6 @@ def create_app() -> FastAPI:
 	# Legacy websocket removed with totals endpoint
 
 	return app
-
 
 app = create_app()
 

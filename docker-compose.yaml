@@ -20,10 +20,15 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
+    command: >-
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      --reload-dir /app/app
+      --reload-include "*.py" --reload-include "*.json" --reload-include ".env"
     environment:
       - KDF_DB_PATH=/home/komodian/.kdf/DB/a8768e7ff55c6c5041bf79d06b74aeed1bb7aa91/MM2.db
     volumes:
       - ./.kdf:/home/komodian/.kdf:ro
+      - ./api/app:/app/app:rw
       - ./.env:/app/.env:ro
       - ./events.json:/app/events.json:ro
     ports:
