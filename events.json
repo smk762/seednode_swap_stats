@@ -1,0 +1,15 @@
+{
+    "kmd_dgb_halloween": {
+        "start": 1759474800,
+        "stop": 1759510800,
+        "base_coin": "KMD",
+        "rel_coin": "DGB",
+        "description": "details for UI text block",
+        "prizes": {
+               "first": "100 USDC",
+               "second":  "1000 KMD",
+               "third":  "2000 DGB"
+         },
+       "rules_url": "https://www.komodoplatform.com/trading_competition_rules"
+    }
+}
