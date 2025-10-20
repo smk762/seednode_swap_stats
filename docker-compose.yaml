@@ -25,7 +25,7 @@ services:
       --reload-dir /app/app
       --reload-include "*.py" --reload-include "*.json" --reload-include ".env"
     environment:
-      - KDF_DB_PATH=/home/komodian/.kdf/DB/a8768e7ff55c6c5041bf79d06b74aeed1bb7aa91/MM2.db
+      - KDF_DB_PATH=/home/komodian/.kdf/DB/9640aa8c78c8f605e990cebcf1d9d4c015bc45e6/MM2.db
     volumes:
       - ./.kdf:/home/komodian/.kdf:ro
       - ./api/app:/app/app:rw

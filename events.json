@@ -1,7 +1,7 @@
 {
     "kmd_dgb_halloween": {
-        "start": 1759474800,
-        "stop": 1759510800,
+        "start": 1760446733,
+        "stop": 1761360733,
         "base_coin": "KMD",
         "rel_coin": "DGB",
         "description": "details for UI text block",

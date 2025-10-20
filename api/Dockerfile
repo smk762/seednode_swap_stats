@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY app /app/app
 
 ENV PYTHONUNBUFFERED=1
-ENV KDF_DB_PATH=/home/komodian/.kdf/DB/a8768e7ff55c6c5041bf79d06b74aeed1bb7aa91/MM2.db
+ENV KDF_DB_PATH=/home/komodian/.kdf/DB/9640aa8c78c8f605e990cebcf1d9d4c015bc45e6/MM2.db
 
 EXPOSE 8000
 

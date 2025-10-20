@@ -10,7 +10,7 @@ from pydantic import BaseSettings, Field, validator
 class AppConfig(BaseSettings):
 	# Paths
 	kdf_db_path: str = Field(
-		"/home/komodian/.kdf/DB/a8768e7ff55c6c5041bf79d06b74aeed1bb7aa91/MM2.db",
+		"/home/komodian/.kdf/DB/9640aa8c78c8f605e990cebcf1d9d4c015bc45e6/MM2.db",
 		env="KDF_DB_PATH",
 	)
 	events_json_path: str = Field("events.json", env="EVENTS_JSON_PATH")
@@ -19,6 +19,8 @@ class AppConfig(BaseSettings):
 	kdf_load_history: bool = Field(True, env="KDF_LOAD_HISTORY")
 	retention_hours: int = Field(1, env="RETENTION_HOURS")
 	backfill_since: Optional[int] = Field(None, env="BACKFILL_SINCE")
+	# Privacy/security
+	pubkey_hash_key: str = Field("", env="PUBKEY_HASH_KEY")
 
 	@validator("retention_hours", pre=True)
 	def _non_negative_hours(cls, v):  # type: ignore

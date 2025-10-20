@@ -12,10 +12,23 @@ from .events import Event
 from .prices import PriceCache
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 def _pair_key(maker_coin: str, taker_coin: str) -> str:
 	return f"{maker_coin.upper()}|{taker_coin.upper()}"
+
+
+def _normalize_symbol(coin_symbol: Optional[str], coin_ticker: Optional[str]) -> str:
+	"""Prefer ticker if available; otherwise strip platform suffixes like -segwit from symbol.
+
+	This ensures keys like KMD|DGB match even when DB symbol is DGB-segwit.
+	"""
+	if coin_ticker and str(coin_ticker).strip():
+		return str(coin_ticker).upper()
+	# Fallback: remove suffix after '-' (e.g., DGB-segwit -> DGB)
+	base = (coin_symbol or "").split("-")[0]
+	return base.upper()
 
 
 @dataclass(order=True)
@@ -59,9 +72,12 @@ class SwapStore:
 			if swap.uuid in self._uuid_to_swap:
 				return False
 			self._uuid_to_swap[swap.uuid] = swap
-			key = _pair_key(swap.maker_coin, swap.taker_coin)
+			maker_sym = _normalize_symbol(swap.maker_coin, swap.maker_coin_ticker)
+			taker_sym = _normalize_symbol(swap.taker_coin, swap.taker_coin_ticker)
+			key = _pair_key(maker_sym, taker_sym)
 			bucket = self._pair_to_uuids_by_time[key]
 			bisect.insort(bucket, _TimedSwap(finished_at=int(swap.finished_at), uuid=swap.uuid))
+			logger.info(f"Indexed swap {swap.uuid} under key {key} at ts={swap.finished_at}; bucket_size={len(bucket)}")
 			return True
 
 	def get_swap(self, uuid: str) -> Optional[Swap]:
@@ -75,10 +91,12 @@ class SwapStore:
 	def _is_within_any_event(self, swap: Swap) -> bool:
 		if not self._events:
 			return False
+		maker_sym = _normalize_symbol(swap.maker_coin, swap.maker_coin_ticker)
+		taker_sym = _normalize_symbol(swap.taker_coin, swap.taker_coin_ticker)
 		for ev in self._events:
 			if swap.finished_at is None:
 				continue
-			if ev.matches_pair(swap.maker_coin, swap.taker_coin) and ev.start <= int(swap.finished_at) <= ev.stop:
+			if ev.matches_pair(maker_sym, taker_sym) and ev.start <= int(swap.finished_at) <= ev.stop:
 				return True
 		return False
 
@@ -154,13 +172,15 @@ class SwapStore:
 		rel_sum = 0.0
 		users = set()
 		for s in swaps:
-			if s.maker_coin.upper() == event.base_coin.upper():
+			maker_sym = _normalize_symbol(s.maker_coin, s.maker_coin_ticker)
+			taker_sym = _normalize_symbol(s.taker_coin, s.taker_coin_ticker)
+			if maker_sym.upper() == event.base_coin.upper():
 				base_sum += float(str(s.maker_amount))
-			elif s.maker_coin.upper() == event.rel_coin.upper():
+			elif maker_sym.upper() == event.rel_coin.upper():
 				rel_sum += float(str(s.maker_amount))
-			if s.taker_coin.upper() == event.base_coin.upper():
+			if taker_sym.upper() == event.base_coin.upper():
 				base_sum += float(str(s.taker_amount))
-			elif s.taker_coin.upper() == event.rel_coin.upper():
+			elif taker_sym.upper() == event.rel_coin.upper():
 				rel_sum += float(str(s.taker_amount))
 			if s.maker_pubkey:
 				users.add(s.maker_pubkey)
@@ -189,19 +209,25 @@ class SwapStore:
 
 	def swaps_for_event_pair(self, event: Event, start_ts: int, end_ts: int) -> List[Swap]:
 		"""Return swaps for the event pair within the time window, regardless of maker/taker role."""
+		logger.info(f"Swaps for event pair {event.name} {event.base_coin} {event.rel_coin} {start_ts} {end_ts}")
 		with self._lock:
 			left_key = _pair_key(event.base_coin, event.rel_coin)
 			right_key = _pair_key(event.rel_coin, event.base_coin)
 			result: List[Swap] = []
 			for key in (left_key, right_key):
+				logger.info(f"Key: {key}")
 				bucket = self._pair_to_uuids_by_time.get(key, [])
 				if not bucket:
 					continue
+				logger.info(f"Bucket: {bucket}")
 				left = bisect.bisect_left(bucket, _TimedSwap(finished_at=int(start_ts), uuid=""))
+				logger.info(f"Left: {left}")
 				right = bisect.bisect_right(bucket, _TimedSwap(finished_at=int(end_ts), uuid="\uffff"))
+				logger.info(f"Right: {right}")
 				for entry in bucket[left:right]:
 					s = self._uuid_to_swap.get(entry.uuid)
 					if s:
+						logger.info(f"Swap: {s}")
 						result.append(s)
 			return sorted(result, key=lambda s: int(s.finished_at or 0), reverse=True)
 
@@ -222,9 +248,12 @@ class SwapStore:
 
 		per_trader: Dict[str, dict] = {}
 		for s in swaps:
-			for pubkey in filter(None, [s.maker_pubkey, s.taker_pubkey]):
-				rec = per_trader.setdefault(pubkey, {
-					"pubkey": pubkey,
+			maker_sym = _normalize_symbol(s.maker_coin, s.maker_coin_ticker)
+			taker_sym = _normalize_symbol(s.taker_coin, s.taker_coin_ticker)
+			pubkeys = list(filter(None, [s.maker_pubkey, s.taker_pubkey]))
+			for key in pubkeys:
+				rec = per_trader.setdefault(key, {
+					"pubkey": key,
 					"base_coin_volume": 0.0,
 					"rel_coin_volume": 0.0,
 					"trades_as_maker": 0,
@@ -237,22 +266,27 @@ class SwapStore:
 					"usd_rel_value": 0.0,
 					"usd_total_value": 0.0,
 				})
-			# Accumulate volumes irrespective of role
-			if s.maker_coin.upper() == event.base_coin.upper():
-				rec["base_coin_volume"] += float(str(s.maker_amount))
-			elif s.maker_coin.upper() == event.rel_coin.upper():
-				rec["rel_coin_volume"] += float(str(s.maker_amount))
-			if s.taker_coin.upper() == event.base_coin.upper():
-				rec["base_coin_volume"] += float(str(s.taker_amount))
-			elif s.taker_coin.upper() == event.rel_coin.upper():
-				rec["rel_coin_volume"] += float(str(s.taker_amount))
-			# Role counts for both pubkeys
-			rec["trades_total"] += 1
-			if pubkey == s.maker_pubkey:
-				rec["trades_as_maker"] += 1
-			else:
-				rec["trades_as_taker"] += 1
-			rec["last_finished_at"] = max(rec["last_finished_at"], int(s.finished_at or 0))
+			# Volumes irrespective of role (credited once per swap to both parties)
+			if maker_sym.upper() == event.base_coin.upper():
+				for key in pubkeys:
+					per_trader[key]["base_coin_volume"] += float(str(s.maker_amount))
+			elif maker_sym.upper() == event.rel_coin.upper():
+				for key in pubkeys:
+					per_trader[key]["rel_coin_volume"] += float(str(s.maker_amount))
+			if taker_sym.upper() == event.base_coin.upper():
+				for key in pubkeys:
+					per_trader[key]["base_coin_volume"] += float(str(s.taker_amount))
+			elif taker_sym.upper() == event.rel_coin.upper():
+				for key in pubkeys:
+					per_trader[key]["rel_coin_volume"] += float(str(s.taker_amount))
+			# Role counts and totals per participant
+			for key in pubkeys:
+				per_trader[key]["trades_total"] += 1
+				if key == s.maker_pubkey:
+					per_trader[key]["trades_as_maker"] += 1
+				else:
+					per_trader[key]["trades_as_taker"] += 1
+				per_trader[key]["last_finished_at"] = max(per_trader[key]["last_finished_at"], int(s.finished_at or 0))
 
 		# Prices and USD value
 		base_price = price_cache.get_price_usd(event.base_coin) if price_cache else None

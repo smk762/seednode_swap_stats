@@ -45,7 +45,9 @@ class SQLiteSwapMonitor:
 			self._thread.join(timeout=5)
 
 	def _connect(self) -> sqlite3.Connection:
-		conn = sqlite3.connect(self._db_path)
+		# Use autocommit to ensure read transactions are not held open between polls,
+		# which can block WAL checkpointing in the writer.
+		conn = sqlite3.connect(self._db_path, isolation_level=None)
 		conn.row_factory = sqlite3.Row
 		return conn
 
