@@ -237,14 +237,15 @@ class SwapStore:
 		Sort by newest activity (finished_at desc) then by USD total value desc.
 		"""
 		swaps = self.swaps_for_event_pair(event, start_ts, end_ts)
-		if pubkey_search:
-			needle = pubkey_search.lower()
-			swaps = [s for s in swaps if (s.maker_pubkey and needle in s.maker_pubkey.lower()) or (s.taker_pubkey and needle in s.taker_pubkey.lower())]
 
-		# Ensure prices are tracked
+		# Ensure prices are tracked and fetch cache values (may be None)
 		symbols = {event.base_coin.upper(), event.rel_coin.upper()}
+		base_cache_price: Optional[float] = None
+		rel_cache_price: Optional[float] = None
 		if price_cache:
 			price_cache.register_symbols(symbols)
+			base_cache_price = price_cache.get_price_usd(event.base_coin)
+			rel_cache_price = price_cache.get_price_usd(event.rel_coin)
 
 		per_trader: Dict[str, dict] = {}
 		for s in swaps:
@@ -279,6 +280,25 @@ class SwapStore:
 			elif taker_sym.upper() == event.rel_coin.upper():
 				for key in pubkeys:
 					per_trader[key]["rel_coin_volume"] += float(str(s.taker_amount))
+
+			# USD value contributions with fallback to recorded per-swap prices when cache is missing
+			base_usd_add = 0.0
+			rel_usd_add = 0.0
+			if maker_sym.upper() == event.base_coin.upper():
+				maker_price = float(s.maker_coin_usd_price) if s.maker_coin_usd_price is not None else (base_cache_price or 0.0)
+				base_usd_add += float(str(s.maker_amount)) * maker_price
+			elif maker_sym.upper() == event.rel_coin.upper():
+				maker_price = float(s.maker_coin_usd_price) if s.maker_coin_usd_price is not None else (rel_cache_price or 0.0)
+				rel_usd_add += float(str(s.maker_amount)) * maker_price
+			if taker_sym.upper() == event.base_coin.upper():
+				taker_price = float(s.taker_coin_usd_price) if s.taker_coin_usd_price is not None else (base_cache_price or 0.0)
+				base_usd_add += float(str(s.taker_amount)) * taker_price
+			elif taker_sym.upper() == event.rel_coin.upper():
+				taker_price = float(s.taker_coin_usd_price) if s.taker_coin_usd_price is not None else (rel_cache_price or 0.0)
+				rel_usd_add += float(str(s.taker_amount)) * taker_price
+			for key in pubkeys:
+				per_trader[key]["usd_base_value"] += base_usd_add
+				per_trader[key]["usd_rel_value"] += rel_usd_add
 			# Role counts and totals per participant
 			for key in pubkeys:
 				per_trader[key]["trades_total"] += 1
@@ -288,18 +308,31 @@ class SwapStore:
 					per_trader[key]["trades_as_taker"] += 1
 				per_trader[key]["last_finished_at"] = max(per_trader[key]["last_finished_at"], int(s.finished_at or 0))
 
-		# Prices and USD value
-		base_price = price_cache.get_price_usd(event.base_coin) if price_cache else None
-		rel_price = price_cache.get_price_usd(event.rel_coin) if price_cache else None
+		# Finalize prices and totals; compute effective average prices per trader
 		for rec in per_trader.values():
-			rec["usd_base_price"] = base_price
-			rec["usd_rel_price"] = rel_price
-			rec["usd_base_value"] = (rec["base_coin_volume"] or 0.0) * (base_price or 0.0)
-			rec["usd_rel_value"] = (rec["rel_coin_volume"] or 0.0) * (rel_price or 0.0)
-			rec["usd_total_value"] = rec["usd_base_value"] + rec["usd_rel_value"]
+			base_vol = rec["base_coin_volume"] or 0.0
+			rel_vol = rec["rel_coin_volume"] or 0.0
+			base_val = rec["usd_base_value"] or 0.0
+			rel_val = rec["usd_rel_value"] or 0.0
+			base_avg = (base_val / base_vol) if base_vol else None
+			rel_avg = (rel_val / rel_vol) if rel_vol else None
+			rec["usd_base_price"] = base_avg if base_avg is not None else base_cache_price
+			rec["usd_rel_price"] = rel_avg if rel_avg is not None else rel_cache_price
+			rec["usd_total_value"] = base_val + rel_val
 
 		rows = list(per_trader.values())
-		rows.sort(key=lambda r: (r["last_finished_at"], r["usd_total_value"]), reverse=True)
+		# Compute ranks by total USD value across the full set (1 = highest)
+		sorted_for_rank = sorted(rows, key=lambda r: r["usd_total_value"], reverse=True)
+		pubkey_to_rank = {r["pubkey"]: idx + 1 for idx, r in enumerate(sorted_for_rank)}
+		for r in rows:
+			r["rank"] = pubkey_to_rank.get(r["pubkey"])  # type: ignore[assignment]
+
+		# Apply optional pubkey search at the end so rank remains global
+		if pubkey_search:
+			needle = pubkey_search.lower()
+			rows = [r for r in rows if r.get("pubkey") and needle in str(r.get("pubkey")).lower()]
+
+		rows.sort(key=lambda r: r["rank"])  # primary sort by rank ascending
 		return rows
 
 

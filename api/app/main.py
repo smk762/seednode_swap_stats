@@ -237,8 +237,19 @@ def create_app() -> FastAPI:
 				base_vol += float(str(s.taker_amount))
 			elif s.taker_coin_ticker.upper() == ev.rel_coin.upper():
 				rel_vol += float(str(s.taker_amount))
-			usd_base_value = base_vol * (b_price or 0.0)
-			usd_rel_value = rel_vol * (r_price or 0.0)
+			# Prefer per-swap recorded USD prices aligned to event base/rel, fallback to cache
+			swap_base_price = None
+			swap_rel_price = None
+			if s.maker_coin_ticker and s.maker_coin_ticker.upper() == ev.base_coin.upper() and s.maker_coin_usd_price is not None:
+				swap_base_price = float(s.maker_coin_usd_price)
+			elif s.taker_coin_ticker and s.taker_coin_ticker.upper() == ev.base_coin.upper() and s.taker_coin_usd_price is not None:
+				swap_base_price = float(s.taker_coin_usd_price)
+			if s.maker_coin_ticker and s.maker_coin_ticker.upper() == ev.rel_coin.upper() and s.maker_coin_usd_price is not None:
+				swap_rel_price = float(s.maker_coin_usd_price)
+			elif s.taker_coin_ticker and s.taker_coin_ticker.upper() == ev.rel_coin.upper() and s.taker_coin_usd_price is not None:
+				swap_rel_price = float(s.taker_coin_usd_price)
+			usd_base_value = base_vol * (swap_base_price if swap_base_price is not None else (b_price or 0.0))
+			usd_rel_value = rel_vol * (swap_rel_price if swap_rel_price is not None else (r_price or 0.0))
 			payload = {**s.dict()}
 			maker_hash = _hash_pubkey_resp(s.maker_pubkey)
 			taker_hash = _hash_pubkey_resp(s.taker_pubkey)
@@ -249,11 +260,13 @@ def create_app() -> FastAPI:
 			payload.update({
 				"maker_pubkey_hash": maker_hash,
 				"taker_pubkey_hash": taker_hash,
-				"usd_base_price": b_price,
-				"usd_rel_price": r_price,
+				"usd_base_price": swap_base_price if swap_base_price is not None else b_price,
+				"usd_rel_price": swap_rel_price if swap_rel_price is not None else r_price,
 				"usd_base_value": usd_base_value,
 				"usd_rel_value": usd_rel_value,
 				"usd_total_value": usd_base_value + usd_rel_value,
+				"event_base_coin": ev.base_coin,
+				"event_rel_coin": ev.rel_coin,
 			})
 			return payload
 		swaps_sorted = sorted(swaps, key=lambda s: int(s.finished_at or 0), reverse=True)
