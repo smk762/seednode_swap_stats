@@ -4,11 +4,24 @@
         "stop": 1761360733,
         "base_coin": "KMD",
         "rel_coin": "DGB",
-        "description": "details for UI text block",
+        "description": "details for UI text block for DGB. Prize values are placeholders and will be updated later.",
         "prizes": {
                "first": "100 USDC",
                "second":  "1000 KMD",
                "third":  "2000 DGB"
+         },
+       "rules_url": "https://www.komodoplatform.com/trading_competition_rules"
+    },
+    "kmd_arrr_halloween": {
+        "start": 1760446733,
+        "stop": 1761360733,
+        "base_coin": "KMD",
+        "rel_coin": "ARRR",
+        "description": "details for UI text block for ARRR. Prize values are placeholders and will be updated later.",
+        "prizes": {
+               "first": "100 USDC",
+               "second":  "1000 KMD",
+               "third":  "2000 ARRR"
          },
        "rules_url": "https://www.komodoplatform.com/trading_competition_rules"
     }
