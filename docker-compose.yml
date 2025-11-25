@@ -1,0 +1,54 @@
+services:
+  kdf:
+    build:
+      context: .
+      dockerfile: Dockerfile.kdf
+      args:
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+    command: >-
+      sh -c "./run_kdf.sh"
+    volumes:
+      - ./:/home/komodian/kdf
+      - ./.kdf:/home/komodian/.kdf
+    ports:
+      - "8870:8870"
+      - "42845:42845"
+      - "42855:42855"
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    command: >-
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      --reload-dir /app/app
+      --reload-include "*.py" --reload-include "*.json" --reload-include ".env"
+    environment:
+      - KDF_DB_PATH=/home/komodian/.kdf/DB/9640aa8c78c8f605e990cebcf1d9d4c015bc45e6/MM2.db
+    volumes:
+      - ./.kdf:/home/komodian/.kdf:ro
+      - ./api/app:/app/app:rw
+      - ./.env:/app/.env:ro
+      - ./events.json:/app/events.json:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      - kdf
+
+  api_tests:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    command: ["pytest", "-q"]
+    working_dir: /app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    volumes:
+      - ./api/app:/app/app:rw
+      - ./api/tests:/app/tests:ro
+      - ./.env:/app/.env:ro
+      - ./events.json:/app/events.json:ro
+    depends_on:
+      - kdf

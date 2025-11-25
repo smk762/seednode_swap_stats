@@ -17,6 +17,7 @@ ENV USERPASS=RPC_UserP@SSW0RD
 
 WORKDIR /home/komodian/kdf
 COPY ./ /home/komodian/kdf
+RUN chmod +x /home/komodian/kdf/run_kdf.sh
 
 RUN PATH=/usr/local/bin/:$PATH
 RUN chown -R komodian:komodian /home/komodian

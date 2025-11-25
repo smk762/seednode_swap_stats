@@ -1,0 +1,15 @@
+{
+  "kmd_arrr_dgb_nov_2025": {
+    "start": 1762560000,
+    "stop": 1962560000,
+    "description": "details for UI text block for DGB. Prize values are placeholders and will be updated later.",
+    "prizes": {
+      "first": "100 USDC",
+      "second": "1000 KMD",
+      "third": "2000 DGB"
+    },
+    "rules_url": "https://www.komodoplatform.com/trading_competition_rules",
+    "base_coin": "KMD",
+    "rel_coins": ["ARRR", "DGB"]
+  }
+}
