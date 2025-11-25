@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, Field
+from pydantic import field_serializer
 
 
 class Swap(BaseModel):
@@ -38,10 +39,14 @@ class Swap(BaseModel):
 	maker_version: Optional[str] = None
 	taker_version: Optional[str] = None
 
-	class Config:
-		json_encoders = {
-			Decimal: lambda v: format(v, 'f')
-		}
+	@field_serializer("maker_amount", "taker_amount", "maker_coin_usd_price", "taker_coin_usd_price", when_used="json")
+	def _serialize_decimal(self, v: Optional[Decimal]):
+		if v is None:
+			return None
+		try:
+			return float(v)
+		except Exception:
+			return float(str(v))
 
 
 class TotalCount(BaseModel):

@@ -1,6 +1,8 @@
-fastapi==0.115.0
+fastapi==0.122.0
 uvicorn[standard]==0.30.6
-pydantic==1.10.17
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-dotenv==1.0.1
 requests==2.32.3
 python-bitcoinlib==0.12.2
 

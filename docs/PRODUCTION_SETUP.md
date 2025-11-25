@@ -33,7 +33,7 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 3) Clone the repository
 
 ```bash
-git clone https://github.com/your-org-or-user/seednode_swap_stats.git
+git clone https://github.com/smk762/seednode_swap_stats.git
 cd seednode_swap_stats
 ```
 

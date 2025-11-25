@@ -13,7 +13,7 @@ import hashlib
 from fastapi.responses import JSONResponse
 from dataclasses import dataclass
 from contextlib import asynccontextmanager
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from .config import AppConfig
 from .insight_api import InsightAPI
 from .registration import RegistrationRepo
@@ -45,9 +45,10 @@ class RegisterRequest(BaseModel):
 	swap_uuid: str = Field(..., max_length=64)
 	moniker: str = Field(..., max_length=16)
 
-	@validator("moniker")
+	@field_validator("moniker", mode="before")
+	@classmethod
 	def _trim_moniker(cls, v: str) -> str:  # type: ignore
-		return v.strip()
+		return str(v).strip()
 
 class RegisterResponse(BaseModel):
 	registration_address: str
