@@ -31,38 +31,44 @@ def load_events(path: Optional[str]) -> List[Event]:
 	with open(path, "r") as f:
 		data = json.load(f)
 
-	# Accept two shapes:
-	# 1) List[Event-like]
-	# 2) Dict[name -> details]
+	# New schema (dict):
+	# {
+	#   "group_name": {
+	#     "start": ..., "stop": ..., "base_coin": "KMD",
+	#     "rel_coins": ["ARRR", "DGB"],
+	#     ... extra fields ...
+	#   }
+	# }
 	result: List[Event] = []
-	if isinstance(data, list):
-		for item in data:
-			try:
-				extra = {k: v for k, v in item.items() if k not in {"name", "event_name", "start", "stop", "base_coin", "rel_coin"}}
-				result.append(Event(
-					name=str(item.get("name") or item.get("event_name") or "event"),
-					start=int(item["start"]),
-					stop=int(item["stop"]),
-					base_coin=str(item["base_coin"]).upper(),
-					rel_coin=str(item["rel_coin"]).upper(),
-					extra=extra,
-				))
-			except Exception:
+	if not isinstance(data, dict):
+		return result
+	for group_name, details in data.items():
+		try:
+			start = int(details["start"])  # required
+			stop = int(details["stop"])    # required
+			base_coin = str(details["base_coin"]).upper()
+			rel_coins_raw = details.get("rel_coins")
+			if not isinstance(rel_coins_raw, (list, tuple)) or not rel_coins_raw:
 				continue
-	elif isinstance(data, dict):
-		for name, details in data.items():
-			try:
-				extra = {k: v for k, v in details.items() if k not in {"start", "stop", "base_coin", "rel_coin"}}
-				result.append(Event(
-					name=str(name),
-					start=int(details["start"]),
-					stop=int(details["stop"]),
-					base_coin=str(details["base_coin"]).upper(),
-					rel_coin=str(details["rel_coin"]).upper(),
-					extra=extra,
-				))
-			except Exception:
+			rel_coins = [str(r).upper() for r in rel_coins_raw if str(r).strip()]
+			if not rel_coins:
 				continue
+			# Build extra payload, excluding core keys and including group metadata
+			extra = {k: v for k, v in details.items() if k not in {"start", "stop", "base_coin", "rel_coins"}}
+			extra["group_name"] = str(group_name)
+			extra["rel_coins"] = rel_coins
+			for rel in rel_coins:
+				name = f"{group_name}_{rel}"
+				result.append(Event(
+					name=name,
+					start=start,
+					stop=stop,
+					base_coin=base_coin,
+					rel_coin=rel,
+					extra=dict(extra),
+				))
+		except Exception:
+			continue
 	return result
 
 

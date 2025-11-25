@@ -2,7 +2,7 @@ services:
   kdf:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.kdf
       args:
         USER_ID: ${USER_ID:-1000}
         GROUP_ID: ${GROUP_ID:-1000}
@@ -33,5 +33,22 @@ services:
       - ./events.json:/app/events.json:ro
     ports:
       - "8000:8000"
+    depends_on:
+      - kdf
+
+  api_tests:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    command: ["pytest", "-q"]
+    working_dir: /app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    volumes:
+      - ./api/app:/app/app:rw
+      - ./api/tests:/app/tests:ro
+      - ./.env:/app/.env:ro
+      - ./events.json:/app/events.json:ro
     depends_on:
       - kdf

@@ -77,7 +77,7 @@ class SwapStore:
 			key = _pair_key(maker_sym, taker_sym)
 			bucket = self._pair_to_uuids_by_time[key]
 			bisect.insort(bucket, _TimedSwap(finished_at=int(swap.finished_at), uuid=swap.uuid))
-			logger.info(f"Indexed swap {swap.uuid} under key {key} at ts={swap.finished_at}; bucket_size={len(bucket)}")
+			# logger.info(f"Indexed swap {swap.uuid} under key {key} at ts={swap.finished_at}; bucket_size={len(bucket)}")
 			return True
 
 	def get_swap(self, uuid: str) -> Optional[Swap]:
@@ -114,7 +114,7 @@ class SwapStore:
 				if swap.finished_at is None:
 					continue
 				if int(swap.finished_at) <= cutoff and not self._is_within_any_event(swap):
-					logger.info(f"Pruning swap {uuid} because it is older than {cutoff}")
+					# logger.info(f"Pruning swap {uuid} because it is older than {cutoff}")
 					to_delete.append(uuid)
 
 			# Remove from primary map
@@ -215,19 +215,19 @@ class SwapStore:
 			right_key = _pair_key(event.rel_coin, event.base_coin)
 			result: List[Swap] = []
 			for key in (left_key, right_key):
-				logger.info(f"Key: {key}")
+				# logger.info(f"Key: {key}")
 				bucket = self._pair_to_uuids_by_time.get(key, [])
 				if not bucket:
 					continue
-				logger.info(f"Bucket: {bucket}")
+				# logger.info(f"Bucket: {bucket}")
 				left = bisect.bisect_left(bucket, _TimedSwap(finished_at=int(start_ts), uuid=""))
-				logger.info(f"Left: {left}")
+				# logger.info(f"Left: {left}")
 				right = bisect.bisect_right(bucket, _TimedSwap(finished_at=int(end_ts), uuid="\uffff"))
-				logger.info(f"Right: {right}")
+				# logger.info(f"Right: {right}")
 				for entry in bucket[left:right]:
 					s = self._uuid_to_swap.get(entry.uuid)
 					if s:
-						logger.info(f"Swap: {s}")
+						# logger.info(f"Swap: {s}")
 						result.append(s)
 			return sorted(result, key=lambda s: int(s.finished_at or 0), reverse=True)
 

@@ -10,7 +10,7 @@ from typing import Callable, Optional
 import logging
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)
 from .models import Swap
 
 
@@ -102,7 +102,6 @@ class SQLiteSwapMonitor:
 			return last_id
 
 	def _row_to_swap(self, row: sqlite3.Row) -> Swap:
-		logger.info(f"Processing swap: {row}")
 		return Swap(
 			id=int(row["id"]),
 			uuid=str(row["uuid"]),
